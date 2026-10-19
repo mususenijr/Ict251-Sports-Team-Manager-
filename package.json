@@ -1,0 +1,16 @@
+{
+  "name": "ict251-sports-team-manager",
+  "version": "1.0.0",
+  "description": "Sports Team Roster and Fixtures Management System for ICT 251 Activity 4",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "nodejs",
+    "sports",
+    "crud",
+    "ict251"
+  ],
+  "license": "MIT"
+}
