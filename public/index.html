@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sports Team Manager | ICT 251</title>
+<style>
+body{font-family:Arial,sans-serif;background:#eef2f7;margin:0;color:#172033}
+header{background:#102b46;color:white;padding:24px;text-align:center}
+main{max-width:1000px;margin:20px auto;padding:15px}
+.card{background:white;padding:18px;border-radius:12px;margin-bottom:20px;box-shadow:0 2px 8px #ccd3dc}
+input,select{box-sizing:border-box;width:100%;padding:12px;margin:6px 0;border:1px solid #ccd3dc;border-radius:6px}
+button{padding:10px 14px;border:0;border-radius:6px;background:#087f5b;color:white;margin:4px;cursor:pointer}
+.delete{background:#c92a2a}
+.edit{background:#1864ab}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;background:white}
+th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left}
+th{background:#e8f0f8}
+</style>
+</head>
+<body>
+<header>
+<h1>Sports Team Manager</h1>
+<p>Player Roster & Fixtures Management System</p>
+<p>ICT 251 — Activity 4</p>
+</header>
+
+<main>
+<section class="card">
+<h2>Add or Edit a Record</h2>
+<form id="recordForm">
+<input type="hidden" id="id">
+
+<label>Record Type</label>
+<select id="type">
+<option value="Player">Player</option>
+<option value="Fixture">Fixture</option>
+</select>
+
+<input id="player_name" placeholder="Player name">
+<input id="position" placeholder="Player position">
+<input id="jersey_number" type="number" placeholder="Jersey number">
+<input id="opponent" placeholder="Opponent team">
+<label>Match Date</label>
+<input id="match_date" type="date">
+<input id="venue" placeholder="Venue">
+<input id="fixture_type" placeholder="Fixture type (e.g. League)">
+<input id="status" placeholder="Fixture status (e.g. Upcoming)">
+
+<button type="submit">Save Record</button>
+<button type="button" onclick="clearForm()">Clear Form</button>
+</form>
+<p id="message"></p>
+</section>
+
+<section class="card">
+<h2>Team Roster and Fixtures</h2>
+<button onclick="loadRecords()">Refresh Records</button>
+<div class="tablewrap">
+<table>
+<thead>
+<tr>
+<th>ID</th><th>Type</th><th>Player</th><th>Position</th>
+<th>Jersey</th><th>Opponent</th><th>Date</th>
+<th>Venue</th><th>Status</th><th>Actions</th>
+</tr>
+</thead>
+<tbody id="records"></tbody>
+</table>
+</div>
+</section>
+</main>
+
+<script>
+const API = "/api/sports";
+
+async function request(url, method="GET", data=null) {
+    const options = {method, headers: {"Content-Type":"application/json"}};
+    if (data) options.body = JSON.stringify(data);
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error("Request failed");
+    return response.json();
+}
+
+async function loadRecords() {
+    try {
+        const data = await request(API);
+        document.getElementById("records").innerHTML = data.map(r => {
+            const type = r.record_type || (r.status === "Player" ? "Player" : "Fixture");
+            return `<tr>
+            <td>${r.id}</td><td>${type}</td>
+            <td>${r.player_name || ""}</td><td>${r.position || ""}</td>
+            <td>${r.jersey_number || ""}</td><td>${r.opponent || ""}</td>
+            <td>${r.match_date || ""}</td><td>${r.venue || ""}</td>
+            <td>${r.status || ""}</td>
+            <td><button class="edit" onclick="editRecord(${r.id})">Edit</button>
+            <button class="delete" onclick="deleteRecord(${r.id})">Delete</button></td>
+            </tr>`;
+        }).join("");
+        document.getElementById("message").textContent =
+            data.length ? "Records loaded successfully." : "No records yet. Add one above.";
+    } catch (error) {
+        document.getElementById("message").textContent =
+            "Could not load records. The backend must be running.";
+    }
+}
+
+document.getElementById("recordForm").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    const id = document.getElementById("id").value;
+    const type = document.getElementById("type").value;
+
+    const data = {
+        record_type: type,
+        player_name: document.getElementById("player_name").value,
+        position: document.getElementById("position").value,
+        jersey_number: document.getElementById("jersey_number").value,
+        opponent: document.getElementById("opponent").value,
+        match_date: document.getElementById("match_date").value,
+        venue: document.getElementById("venue").value,
+        fixture_type: document.getElementById("fixture_type").value,
+        status: type === "Player"
+            ? "Player"
+            : (document.getElementById("status").value || "Upcoming")
+    };
+
+    try {
+        await request(id ? API + "/" + id : API, id ? "PUT" : "POST", data);
+        document.getElementById("message").textContent = "Record saved successfully!";
+        clearForm();
+        loadRecords();
+    } catch (error) {
+        document.getElementById("message").textContent =
+            "Unable to save. Check that the backend is running.";
+    }
+});
+
+async function editRecord(id) {
+    try {
+        const data = await request(API);
+        const r = data.find(item => item.id === id);
+        if (!r) return;
+
+        document.getElementById("id").value = r.id;
+        document.getElementById("type").value =
+            r.record_type || (r.status === "Player" ? "Player" : "Fixture");
+
+        ["player_name","position","jersey_number","opponent",
+         "match_date","venue","fixture_type","status"].forEach(key => {
+            document.getElementById(key).value = r[key] || "";
+        });
+
+        window.scrollTo(0,0);
+    } catch (error) {
+        alert("Could not load record for editing.");
+    }
+}
+
+async function deleteRecord(id) {
+    if (!confirm("Are you sure you want to delete this record?")) return;
+    try {
+        await request(API + "/" + id, "DELETE");
+        loadRecords();
+    } catch (error) {
+        alert("Could not delete record.");
+    }
+}
+
+function clearForm() {
+    document.getElementById("recordForm").reset();
+    document.getElementById("id").value = "";
+}
+
+loadRecords();
+</script>
+</body>
+  </html>
